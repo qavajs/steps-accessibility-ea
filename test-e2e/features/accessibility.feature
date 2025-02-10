@@ -5,17 +5,18 @@ Feature: Accessibility
     And I perform accessibility check:
     """
     {
-      "runOnly": ["wcag2a"]
+      "outputFormat": ["json", "html"],
+      "failLevels": []
     }
     """
 
   Scenario: perform accessibility check and save results
     When I open 'https://qavajs.github.io/' url
-    And I perform accessibility check and save results as 'axeReport':
+    And I perform accessibility check and save results as 'report':
     """
     {
-      "runOnly": ["wcag2a"]
+      "outputFormat": ["json", "html"]
     }
     """
-    Then I expect '$axeReport.violations.length' to equal '0'
+    Then I expect '$report.summary.counts.violation' greater than '0'
 

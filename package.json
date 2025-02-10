@@ -1,7 +1,7 @@
 {
-  "name": "@qavajs/steps-accessibility",
-  "version": "3.0.0",
-  "description": "Steps to perform accessibility checks",
+  "name": "@qavajs/steps-accessibility-ea",
+  "version": "0.0.1",
+  "description": "Steps to perform accessibility checks powered by accessibility-checker lib",
   "main": "./index.js",
   "scripts": {
     "build": "tsc",
@@ -18,9 +18,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/qavajs/steps-accessibility/issues"
+    "url": "https://github.com/qavajs/steps-accessibility-ea/issues"
   },
-  "homepage": "https://github.com/qavajs/steps-accessibility#readme",
+  "homepage": "https://github.com/qavajs/steps-accessibility-ea#readme",
   "devDependencies": {
     "@cucumber/cucumber": "^11.2.0",
     "@qavajs/console-formatter": "^0.8.0",
@@ -28,7 +28,7 @@
     "@qavajs/html-formatter": "^0.18.1",
     "@qavajs/steps-memory": "^2.0.0",
     "@qavajs/steps-playwright": "^2.3.0",
-    "@qavajs/steps-wdio": "^2.2.1",
+    "@qavajs/steps-wdio": "^2.3.0",
     "@types/chai": "^4.3.20",
     "@types/jest": "^29.5.14",
     "chai": "^4.5.0",
@@ -36,7 +36,6 @@
     "ts-node": "^10.9.2"
   },
   "dependencies": {
-    "axe-core": "^4.10.2",
-    "axe-html-reporter": "^2.2.11"
+    "accessibility-checker": "^3.1.79"
   }
 }

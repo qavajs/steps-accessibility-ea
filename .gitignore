@@ -4,3 +4,4 @@ coverage/
 test-e2e/report.xml
 test-e2e/report.html
 test-e2e/folder/
+results/

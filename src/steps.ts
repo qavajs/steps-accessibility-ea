@@ -1,98 +1,111 @@
 import { When } from '@cucumber/cucumber';
-import { AxeResults, RunOptions } from 'axe-core';
-import { createHtmlReport } from 'axe-html-reporter';
 import { MemoryValue } from '@qavajs/core';
+import * as aChecker from 'accessibility-checker';
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
-function htmlAttachment(results: AxeResults) {
-    const reportHTML = createHtmlReport({
-        results,
-        options: {
-            doNotCreateReportFile: true,
-        },
-    });
-    return Buffer.from(reportHTML).toString('base64');
-}
-
+type AccessibilityReport = ReturnType<typeof aChecker.getBaseline> & { details?: any, isFailed: boolean };
+type Config = Required<Awaited<ReturnType<typeof aChecker.getConfig>>>;
+type SummaryCounts = AccessibilityReport['summary']['counts'];
 type World = { config: any, wdio?: any, playwright?: any, attach: (attachment: any, mime: string) => void };
 
-async function audit(world: World, options?: RunOptions) {
+const originalGetConfig = aChecker.getConfig.bind(aChecker);
+
+function summary(summary: SummaryCounts) {
+    return Object.entries(summary).map(([k, v]) => `    ${k}: ${v}`).join('\n');
+}
+
+const mimeType = {
+    html: 'base64:text/html',
+    json: 'base64:text/json',
+    csv: 'base64:text/csv',
+    xlsx: 'base64:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    disable: 'text/plain'
+}
+
+async function audit(world: World, options: any = {}) {
     if (!world.wdio && !world.playwright) throw new Error('Browser instance does not exist! Make sure that webdriverio or playwright steps are installed');
-    const axeCode = await readFile('node_modules/axe-core/axe.min.js', { encoding: 'utf8' });
-    let results;
-    if (world.playwright) {
-        await world.playwright.page.evaluate(axeCode);
-        // @ts-ignore
-        results = await world.playwright.page.evaluate(options => window.axe.run(options), options);
+    const driver = world.playwright ? world.playwright.page : world.wdio.browser;
+    // @ts-ignore
+    aChecker.getConfig = async function() {
+        const defaultConfig = await originalGetConfig();
+        return Object.assign(defaultConfig, options);
     }
-    if (world.wdio) {
-        await world.wdio.browser.execute(axeCode);
-        // @ts-ignore
-        results = await world.wdio.browser.executeAsync((options, done) => window.axe.run(options).then(done), options);
+    const label = `qavajs-accessibility-${randomUUID()}`;
+    const config = await aChecker.getConfig() as Config;
+    const { report } = await aChecker.getCompliance(driver, label) as { report: AccessibilityReport };
+    for (const ext of config.outputFormat.filter(format => format !== 'disable')) {
+        const file = await readFile(join(process.cwd(), config.outputFolder as string, `${label}.${ext}`));
+        world.attach(file.toString('base64'), mimeType[ext]);
     }
-    world.attach(htmlAttachment(results), 'base64:text/html');
-    return results;
+    await aChecker.close();
+    if (report.details) {
+        throw new Error(report.details);
+    }
+    report.isFailed = config.failLevels.some(failLevel => report.summary.counts[failLevel] > 0);
+    return report;
 }
 
 /**
- * Perform accessibility check using axe library
+ * Perform accessibility check using accessibility-checker library
  * @example
  * When I perform accessibility check
  */
 When('I perform accessibility check', async function (this: World) {
-    const results = await audit(this);
-    if (results.violations.length > 0) {
-        throw new Error(`Accessibility check failed! Found ${results.violations.length} violations`);
+    const report = await audit(this);
+    if (report.isFailed) {
+        throw new Error(`Accessibility check failed!\n${summary(report.summary.counts)}`);
     }
 });
 
 /**
- * Perform configure accessibility check using axe library
- * Configuration https://github.com/dequelabs/axe-core/blob/9a743ee298df3ac300006335128bbdd1ca63ccd5/doc/API.md#api-name-axerun
+ * Perform configure accessibility check using accessibility-checker library
+ * Configuration https://github.com/IBMa/equal-access/blob/master/accessibility-checker/src/README.md#configuration
  * @example
  * When I perform accessibility check:
  * """
  * {
- *   "include": ["div", "a"]
+ *    "outputFormat": ["html"]
  * }
  * """
  */
 When('I perform accessibility check:', async function (this: World, optionsMultiline: string) {
     const options = JSON.parse(optionsMultiline);
-    const results = await audit(this, options);
-    if (results.violations.length > 0) {
-        throw new Error(`Accessibility check failed! Found ${results.violations.length} violations`);
+    const report = await audit(this, options);
+    if (report.isFailed) {
+        throw new Error(`Accessibility check failed!\n${summary(report.summary.counts)}`);
     }
 });
 
 
 /**
- * Perform accessibility check using axe library and save result to memory variable
- * Results https://github.com/dequelabs/axe-core/blob/develop/doc/API.md#results-object
+ * Perform accessibility check using accessibility-checker library and save result to memory variable
+ * Results https://github.com/IBMa/equal-access/blob/master/accessibility-checker/src/README.md#async-acheckergetcompliancecontent-label--string
  * @example
- * When I perform accessibility check and save results as 'axeReport'
- * Then I expect '$axeReport.violations.length' to equal '0'
+ * When I perform accessibility check and save results as 'report'
+ * Then I expect '$report.summary.counts.violation' to equal '0'
  */
 When('I perform accessibility check and save results as {value}', async function (this: World, memoryKey: MemoryValue) {
-    const results = await audit(this);
-    memoryKey.set(results);
+    const report = await audit(this);
+    memoryKey.set(report);
 });
 
 /**
- * Perform configured accessibility check using axe library and save result to memory variable
- * Results https://github.com/dequelabs/axe-core/blob/develop/doc/API.md#results-object
- * Configuration https://github.com/dequelabs/axe-core/blob/9a743ee298df3ac300006335128bbdd1ca63ccd5/doc/API.md#api-name-axerun
+ * Perform configured accessibility check using accessibility-checker library and save result to memory variable
+ * Results https://github.com/IBMa/equal-access/blob/master/accessibility-checker/src/README.md#async-acheckergetcompliancecontent-label--string
+ * Configuration https://github.com/IBMa/equal-access/blob/master/accessibility-checker/src/README.md#configuration
  * @example
- * When I perform accessibility check and save results as 'axeReport':
+ * When I perform accessibility check and save results as 'report':
  * """
  * {
- *   "include": ["div", "a"]
+ *    "outputFormat": ["html"]
  * }
  * """
- * Then I expect '$axeReport.violations.length' to equal '0'
+ * Then I expect '$report.summary.counts.violation' to equal '0'
  */
 When('I perform accessibility check and save results as {value}:', async function (this: World, memoryKey: MemoryValue, optionsMultiline: string) {
     const options = JSON.parse(optionsMultiline);
-    const results = await audit(this, options);
-    memoryKey.set(results);
+    const report = await audit(this, options);
+    memoryKey.set(report);
 });
