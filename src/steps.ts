@@ -24,9 +24,27 @@ const mimeType = {
     disable: 'text/plain'
 }
 
+async function renderElement(selector: string) {
+    // @ts-ignore
+    window._QAVAJS_BODY_HTML = window.document.body.innerHTML;
+    // @ts-ignore
+    window.document.body.innerHTML = window.document.querySelector(selector).outerHTML;
+}
+
+async function restoreHtml() {
+    // @ts-ignore
+    window.document.body.innerHTML = window._QAVAJS_BODY_HTML;
+}
+
 async function audit(world: World, options: any = {}) {
     if (!world.wdio && !world.playwright) throw new Error('Browser instance does not exist! Make sure that webdriverio or playwright steps are installed');
     const driver = world.playwright ? world.playwright.page : world.wdio.browser;
+    if (options.context) {
+        console.log(options.context)
+        world.playwright
+            ? await world.playwright.page.evaluate(renderElement, options.context)
+            : await world.wdio.browser.execute(renderElement, options.context);
+    }
     // @ts-ignore
     aChecker.getConfig = async function() {
         const defaultConfig = await originalGetConfig();
@@ -35,6 +53,11 @@ async function audit(world: World, options: any = {}) {
     const label = `qavajs-accessibility-${randomUUID()}`;
     const config = await aChecker.getConfig() as Config;
     const { report } = await aChecker.getCompliance(driver, label) as { report: AccessibilityReport };
+    if (options.context) {
+        world.playwright
+            ? await world.playwright.page.evaluate(restoreHtml)
+            : await world.wdio.browser.execute(restoreHtml);
+    }
     for (const ext of config.outputFormat.filter(format => format !== 'disable')) {
         const file = await readFile(join(process.cwd(), config.outputFolder as string, `${label}.${ext}`));
         world.attach(file.toString('base64'), mimeType[ext]);
