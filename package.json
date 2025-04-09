@@ -1,6 +1,6 @@
 {
   "name": "@qavajs/steps-accessibility-ea",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Steps to perform accessibility checks powered by accessibility-checker lib",
   "main": "./index.js",
   "scripts": {
@@ -24,7 +24,7 @@
   "devDependencies": {
     "@cucumber/cucumber": "^11.2.0",
     "@qavajs/console-formatter": "^0.8.0",
-    "@qavajs/core": "^2.3.0",
+    "@qavajs/core": "^2.4.0",
     "@qavajs/html-formatter": "^0.18.1",
     "@qavajs/steps-memory": "^2.0.0",
     "@qavajs/steps-playwright": "^2.3.0",
@@ -36,6 +36,6 @@
     "ts-node": "^10.9.2"
   },
   "dependencies": {
-    "accessibility-checker": "^3.1.79"
+    "accessibility-checker": "^4.0.3"
   }
 }
