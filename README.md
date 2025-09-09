@@ -1,22 +1,22 @@
 # @qavajs/steps-accessibility
-Steps to perform accessibility checks using accessibility-checker library.
+qavajs steps to perform accessibility checks using accessibility-checker library.
 Library can work on top of playwright and webdriverio drivers
 
 ## Installation
-`npm install @qavajs/steps-accessibility-ea`
+```
+npm install @qavajs/steps-accessibility-ea
+```
 
 ## Configuration
-```javascript
-module.exports = {
-    default: {
-        require: [
-            'node_modules/@qavajs/steps-wdio/index.js', //corresponding driver library should be imported first
-            'node_modules/@qavajs/steps-accessibility-ea/index.js'
-        ],
-        format: [
-            '@qavajs/html-formatter:report.html'
-        ],
-    }
+```typescript
+export default {
+    require: [
+        'node_modules/@qavajs/steps-wdio/index.js', //corresponding driver library should be imported first
+        'node_modules/@qavajs/steps-accessibility-ea/index.js'
+    ],
+    format: [
+        ['@qavajs/html-formatter','report.html']
+    ],
 }
 ```
 

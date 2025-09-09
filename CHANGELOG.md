@@ -4,6 +4,15 @@ All notable changes to the "@qavajs/steps-accessibility-ea" will be documented i
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+:rocket: - new feature  
+:beetle: - bugfix  
+:x: - deprecation/removal  
+:pencil: - chore  
+:microscope: - experimental
+
+## [0.1.1]
+- :pencil: updated dependencies
+
 ## [0.1.0]
 - :rocket: added capability to provide context of accessibility analysis
 ```gherkin
