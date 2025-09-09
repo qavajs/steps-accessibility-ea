@@ -1,5 +1,4 @@
-import { When } from '@cucumber/cucumber';
-import { MemoryValue } from '@qavajs/core';
+import { type MemoryValue, When } from '@qavajs/core';
 import * as aChecker from 'accessibility-checker';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
