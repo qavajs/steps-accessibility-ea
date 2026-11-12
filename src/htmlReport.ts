@@ -44,8 +44,8 @@ function safeUrl(url?: string): string | undefined {
     return url && /^https?:\/\//i.test(url) ? url : undefined;
 }
 
-function levelOf(id?: string) {
-    return levels.find(level => level.id === id) ?? { id: id ?? 'unknown', title: id ?? 'Unknown', color: '#6f6f6f' };
+function levelOf(id: string) {
+    return levels.find(level => level.id === id) ?? { id, title: id, color: '#6f6f6f' };
 }
 
 const SNIPPET_LIMIT = 300;

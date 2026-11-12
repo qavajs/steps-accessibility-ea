@@ -98,4 +98,30 @@ describe('htmlReport', () => {
         const html = htmlReport(report([{ ruleId: 'x', message: 'y' }]));
         expect(html).toContain('data-level="unknown"');
     });
+
+    test('renders custom level as is', () => {
+        const html = htmlReport(report([{ ruleId: 'x', level: 'custom', message: 'y' }]));
+        expect(html).toContain('data-level="custom"');
+        expect(html).toContain('<span class="badge" style="background:#6f6f6f">custom</span>');
+    });
+
+    test('truncates long snippets', () => {
+        const html = htmlReport(report([{ ...violation, snippet: 'a'.repeat(400) }]));
+        expect(html).toContain(`<pre>${'a'.repeat(300)}…</pre>`);
+        expect(html).not.toContain('a'.repeat(301));
+    });
+
+    test('groups results of the same rule and orders groups by size within a level', () => {
+        const other = { ...violation, ruleId: 'other_rule' };
+        const html = htmlReport(report([other, violation, { ...violation, path: { dom: '/html[1]/body[1]/img[2]' } }]));
+        expect(html.match(/<code class="rule">img_alt_valid<\/code>/g)).toHaveLength(1);
+        expect(html).toContain('<span class="num">2</span>');
+        expect(html.indexOf('<code class="rule">img_alt_valid</code>'))
+            .toBeLessThan(html.indexOf('<code class="rule">other_rule</code>'));
+    });
+
+    test('handles report without summary', () => {
+        const html = htmlReport({ results: [] } as any, ['violation']);
+        expect(html).toContain('PASSED');
+    });
 });
