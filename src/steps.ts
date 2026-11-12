@@ -3,13 +3,26 @@ import * as aChecker from 'accessibility-checker';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { htmlReport } from './htmlReport';
 
 type AccessibilityReport = ReturnType<typeof aChecker.getBaseline> & { details?: any, isFailed: boolean };
 type Config = Required<Awaited<ReturnType<typeof aChecker.getConfig>>>;
 type SummaryCounts = AccessibilityReport['summary']['counts'];
 type World = { config: any, wdio?: any, playwright?: any, attach: (attachment: any, mime: string) => void };
 
-const originalGetConfig = aChecker.getConfig.bind(aChecker);
+let baseConfig: Config | undefined;
+
+/**
+ * Override accessibility-checker config for current check.
+ * Library caches config object internally, so it is restored to the initial state and patched with step options
+ */
+async function applyConfig(options: Record<string, any>): Promise<Config> {
+    const config = await aChecker.getConfig() as Config;
+    baseConfig ??= structuredClone(config);
+    for (const key of Object.keys(config)) delete (config as any)[key];
+    const { context, ...overrides } = options;
+    return Object.assign(config, structuredClone(baseConfig), overrides);
+}
 
 function summary(summary: SummaryCounts) {
     return Object.entries(summary).map(([k, v]) => `    ${k}: ${v}`).join('\n');
@@ -21,6 +34,26 @@ const mimeType = {
     csv: 'base64:text/csv',
     xlsx: 'base64:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     disable: 'text/plain'
+}
+
+/**
+ * WebdriverIO v10 removed executeAsync that is still used by accessibility-checker.
+ * Polyfill it with execute that resolves promise returned from the script
+ */
+function polyfillExecuteAsync(browser: any) {
+    if (typeof browser.executeAsync === 'function') return;
+    browser.executeAsync = (script: Function, ...args: any[]) => browser.execute(
+        `var args = Array.prototype.slice.call(arguments);
+        return new Promise(function (resolve, reject) {
+            try {
+                var result = (${script.toString()}).apply(null, args.concat(resolve));
+                if (result && typeof result.then === 'function') result.then(null, reject);
+            } catch (e) {
+                reject(e);
+            }
+        });`,
+        ...args
+    );
 }
 
 async function renderElement(selector: string) {
@@ -38,19 +71,14 @@ async function restoreHtml() {
 async function audit(world: World, options: any = {}) {
     if (!world.wdio && !world.playwright) throw new Error('Browser instance does not exist! Make sure that webdriverio or playwright steps are installed');
     const driver = world.playwright ? world.playwright.page : world.wdio.browser;
+    if (!world.playwright) polyfillExecuteAsync(driver);
     if (options.context) {
-        console.log(options.context)
         world.playwright
             ? await world.playwright.page.evaluate(renderElement, options.context)
             : await world.wdio.browser.execute(renderElement, options.context);
     }
-    // @ts-ignore
-    aChecker.getConfig = async function() {
-        const defaultConfig = await originalGetConfig();
-        return Object.assign(defaultConfig, options);
-    }
+    const config = await applyConfig(options);
     const label = `qavajs-accessibility-${randomUUID()}`;
-    const config = await aChecker.getConfig() as Config;
     const { report } = await aChecker.getCompliance(driver, label) as { report: AccessibilityReport };
     if (options.context) {
         world.playwright
@@ -65,6 +93,7 @@ async function audit(world: World, options: any = {}) {
     if (report.details) {
         throw new Error(report.details);
     }
+    world.attach(Buffer.from(htmlReport(report, config.failLevels)).toString('base64'), 'base64:text/html');
     report.isFailed = config.failLevels.some(failLevel => report.summary.counts[failLevel] > 0);
     return report;
 }

@@ -4,3 +4,6 @@ node_modules/
 coverage/
 test-e2e/
 results/
+vitest.config.mts
+tsconfig.json
+tsconfig.build.json
